@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>HAZMAT-RECON // Consola de control</title>
+<style>
+  :root{
+    --bg:#0a0e0d;
+    --panel:#121917;
+    --panel-2:#0e1412;
+    --line:#23302c;
+    --text:#e7ece7;
+    --text-dim:#8aa098;
+    --cyan:#2de6c2;
+    --amber:#ffa733;
+    --red:#ff4433;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    overflow-x:hidden;
+    user-select:none;
+  }
+  .mono{ font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  .label{
+    font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--text-dim); font-weight:700;
+  }
+
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg, var(--panel), var(--bg));
+  }
+  header h1{
+    font-size:16px; margin:0; letter-spacing:.1em; font-weight:800;
+  }
+  header h1 span{ color:var(--amber); }
+  #statusBadge{
+    font-size:11px; letter-spacing:.08em; padding:6px 10px;
+    border-radius:3px; border:1px solid var(--line);
+    font-family: ui-monospace, monospace;
+  }
+  #statusBadge.ok{ color:#0a0e0d; background:var(--cyan); border-color:var(--cyan);}
+  #statusBadge.off{ color:var(--text-dim); }
+
+  #bleWarning{
+    display:none; padding:10px 16px; background:#3a2200; color:var(--amber);
+    font-size:13px; border-bottom:1px solid var(--line); line-height:1.5;
+  }
+  #bleWarning b{ color:#ffcf8a; }
+
+  main{ padding:14px 16px 24px; max-width:640px; margin:0 auto; }
+
+  .row{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  button.ctrl{
+    flex:1; min-width:130px;
+    background:var(--panel); color:var(--text);
+    border:1px solid var(--line); border-radius:6px;
+    padding:12px 10px; font-size:13px; font-weight:700;
+    letter-spacing:.04em; text-transform:uppercase;
+  }
+  button.ctrl:active{ background:#1a2320; }
+  button.ctrl.primary{ border-color:var(--cyan); color:var(--cyan); }
+  button.ctrl.stop{ border-color:var(--red); color:var(--red); }
+
+  .panel{
+    background:var(--panel); border:1px solid var(--line);
+    border-radius:8px; padding:14px; margin-bottom:14px;
+  }
+  .panel-title{
+    font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--text-dim); margin-bottom:10px; font-weight:700;
+  }
+
+  /* ---- volante / indicador de actitud ---- */
+  .wheel-wrap{ display:flex; justify-content:center; padding:6px 0 4px; }
+  #wheelSvg{ width:220px; height:220px; }
+  #wheelAngleReadout{
+    text-align:center; font-size:26px; font-weight:800;
+    font-family: ui-monospace, monospace; color:var(--cyan);
+    margin-top:2px;
+  }
+  .wheel-hint{ text-align:center; font-size:12px; color:var(--text-dim); margin-top:2px;}
+
+  /* ---- throttle + claxon ---- */
+  .drive-row{ display:flex; gap:14px; align-items:stretch; }
+  .throttle-box{
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    width:110px;
+  }
+  .throttle-wrap{
+    width:90px; height:220px; display:flex; align-items:center; justify-content:center;
+  }
+  #throttle{
+    -webkit-appearance:none; appearance:none;
+    width:220px; height:38px; background:transparent; transform:rotate(-90deg);
+  }
+  #throttle::-webkit-slider-runnable-track{
+    height:8px; background:var(--line); border-radius:4px;
+  }
+  #throttle::-webkit-slider-thumb{
+    -webkit-appearance:none; width:34px; height:34px; margin-top:-13px;
+    border-radius:50%; background:var(--cyan); border:3px solid #06110d;
+  }
+  #throttleReadout{ font-family:ui-monospace, monospace; font-size:15px; color:var(--cyan); }
+
+  .side-box{ flex:1; display:flex; flex-direction:column; gap:10px; justify-content:center; }
+  #claxonBtn{
+    flex:1; min-height:120px;
+    background:repeating-linear-gradient(45deg, #2a1c00, #2a1c00 10px, #1c1400 10px, #1c1400 20px);
+    border:2px solid var(--amber); color:var(--amber);
+    border-radius:8px; font-size:16px; font-weight:800; letter-spacing:.12em;
+  }
+  #claxonBtn:active{ background:var(--amber); color:#1c1400; }
+
+  /* ---- telemetría ---- */
+  .metric{ margin-bottom:14px; }
+  .metric:last-child{ margin-bottom:0; }
+  .metric-top{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
+  .metric-val{ font-family:ui-monospace, monospace; font-size:16px; color:var(--text); }
+  .bar-track{ height:10px; background:var(--panel-2); border:1px solid var(--line); border-radius:5px; overflow:hidden; }
+  .bar-fill{ height:100%; width:0%; background:var(--cyan); transition:width .25s ease; }
+  .bar-fill.danger{ background:var(--red); }
+  #gasBar{ background:var(--cyan); }
+  body.gas-alarm #gasBar{ background:var(--red); }
+
+  #alarmBanner{
+    display:none; align-items:center; gap:8px;
+    margin-top:10px; padding:8px 10px; border-radius:6px;
+    background:#3a0d0a; border:1px solid var(--red); color:#ffb3ab;
+    font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  }
+  body.gas-alarm #alarmBanner{ display:flex; }
+
+  /* ---- log ---- */
+  details{ border:1px solid var(--line); border-radius:8px; background:var(--panel); }
+  summary{ padding:10px 14px; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--text-dim); cursor:pointer; }
+  #logPanel{
+    margin:0; padding:10px 14px 14px; font-size:11px; color:var(--text-dim);
+    max-height:150px; overflow-y:auto; white-space:pre-wrap; line-height:1.5;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>HAZMAT<span>-RECON</span> // Consola</h1>
+  <div id="statusBadge" class="off mono">BLE: DESCONECTADO</div>
+</header>
+
+<div id="bleWarning">
+  <b>Este navegador no soporta Web Bluetooth.</b><br>
+  En iPad/iPhone, Safari y Chrome no lo soportan de forma nativa. Instala
+  <b>Bluefy – Web BLE Browser</b> (gratis, App Store) y abre esta misma página
+  ahí, o instala la extensión de Safari <b>iOSWebBLE</b>. Esta página debe
+  servirse por HTTPS.
+</div>
+
+<main>
+
+  <div class="row">
+    <button class="ctrl primary" id="connectBtn">Conectar BLE</button>
+    <button class="ctrl" id="motionBtn">Habilitar sensores</button>
+  </div>
+  <div class="row">
+    <button class="ctrl" id="calibrateBtn">Centrar volante</button>
+    <button class="ctrl stop" id="stopBtn">PARAR</button>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Volante (inclina el iPad)</div>
+    <div class="wheel-wrap">
+      <svg id="wheelSvg" viewBox="0 0 200 200">
+        <circle cx="100" cy="100" r="92" fill="none" stroke="#23302c" stroke-width="2"/>
+        <g id="wheelTicks" stroke="#23302c" stroke-width="2"></g>
+        <circle cx="100" cy="100" r="70" fill="none" stroke="#1a2320" stroke-width="1"/>
+        <g id="wheelNeedle" transform="rotate(0 100 100)">
+          <line x1="100" y1="100" x2="100" y2="24" stroke="#2de6c2" stroke-width="6" stroke-linecap="round"/>
+          <circle cx="100" cy="100" r="10" fill="#2de6c2"/>
+        </g>
+      </svg>
+    </div>
+    <div id="wheelAngleReadout" class="mono">0&deg;</div>
+    <div class="wheel-hint">Sostén el iPad como un volante y gíralo. Usa "Centrar volante" con las llantas rectas.</div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Tracción</div>
+    <div class="drive-row">
+      <div class="throttle-box">
+        <span class="label">Acelerador</span>
+        <div class="throttle-wrap">
+          <input type="range" id="throttle" min="-100" max="100" value="0" step="1">
+        </div>
+        <div id="throttleReadout" class="mono">0</div>
+      </div>
+      <div class="side-box">
+        <button id="claxonBtn">CLAXON</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Telemetría</div>
+
+    <div class="metric">
+      <div class="metric-top">
+        <span class="label">Distancia (ultrasónico)</span>
+        <span id="distReadout" class="metric-val">--</span>
+      </div>
+      <div class="bar-track"><div id="distBar" class="bar-fill"></div></div>
+    </div>
+
+    <div class="metric">
+      <div class="metric-top">
+        <span class="label">Gas / humo (MQ-2)</span>
+        <span id="gasReadout" class="metric-val">--</span>
+      </div>
+      <div class="bar-track"><div id="gasBar" class="bar-fill"></div></div>
+    </div>
+
+    <div id="alarmBanner">&#9888; Nivel de gas por encima del umbral</div>
+  </div>
+
+  <details>
+    <summary>Registro de conexión</summary>
+    <pre id="logPanel" class="mono"></pre>
+  </details>
+
+</main>
+
+<script>
+  const SERVICE_UUID = '0000ffe0-0000-1000-8000-00805f9b34fb';
+  const CHAR_UUID    = '0000ffe1-0000-1000-8000-00805f9b34fb';
+
+  let bleDevice = null;
+  let bleChar = null;
+  let connected = false;
+  let writing = false;
+
+  let steerValue = 0;
+  let throttleValue = 0;
+  let hornActive = false;
+
+  let currentGamma = 0;
+  let calibrationOffset = 0;
+
+  const el = (id) => document.getElementById(id);
+
+  function log(msg){
+    const p = el('logPanel');
+    const t = new Date().toLocaleTimeString();
+    p.textContent += `[${t}] ${msg}\n`;
+    p.scrollTop = p.scrollHeight;
+  }
+
+  function setStatus(isConnected){
+    connected = isConnected;
+    const badge = el('statusBadge');
+    badge.textContent = isConnected ? 'BLE: CONECTADO' : 'BLE: DESCONECTADO';
+    badge.classList.toggle('ok', isConnected);
+    badge.classList.toggle('off', !isConnected);
+  }
+
+  // ---------------- Web Bluetooth ----------------
+  async function connectBLE(){
+    if (!navigator.bluetooth){
+      el('bleWarning').style.display = 'block';
+      log('Este navegador no expone navigator.bluetooth.');
+      return;
+    }
+    try{
+      log('Buscando dispositivos BLE cercanos (elige tu HM-10, suele llamarse "HMSoft")...');
+      bleDevice = await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: [SERVICE_UUID]
+      });
+      bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+      log('Conectando a ' + (bleDevice.name || 'dispositivo') + '...');
+      const server = await bleDevice.gatt.connect();
+      const service = await server.getPrimaryService(SERVICE_UUID);
+      bleChar = await service.getCharacteristic(CHAR_UUID);
+      await bleChar.startNotifications();
+      bleChar.addEventListener('characteristicvaluechanged', onTelemetry);
+      setStatus(true);
+      log('Conectado. Recibiendo telemetría...');
+    } catch(err){
+      log('Error al conectar: ' + err.message);
+      setStatus(false);
+    }
+  }
+
+  function onDisconnected(){
+    setStatus(false);
+    log('Bluetooth desconectado.');
+  }
+
+  let rxBuf = '';
+  function onTelemetry(event){
+    const chunk = new TextDecoder().decode(event.target.value);
+    rxBuf += chunk;
+    let idx;
+    while ((idx = rxBuf.indexOf('\n')) >= 0){
+      const line = rxBuf.slice(0, idx).trim();
+      rxBuf = rxBuf.slice(idx + 1);
+      parseTelemetry(line);
+    }
+  }
+
+  function parseTelemetry(line){
+    if (!line.startsWith('T,')) return;
+    const parts = line.split(',');
+    if (parts.length < 5) return;
+    const dist   = parseInt(parts[1], 10);
+    const gasRaw = parseInt(parts[2], 10);
+    const gasPct = parseInt(parts[3], 10);
+    const alarm  = parts[4].trim() === '1';
+    updateTelemetryUI(dist, gasRaw, gasPct, alarm);
+  }
+
+  async function sendCommand(){
+    if (!connected || !bleChar || writing) return;
+    const line = `C,${steerValue},${throttleValue},${hornActive ? 1 : 0}\n`;
+    try{
+      writing = true;
+      await bleChar.writeValue(new TextEncoder().encode(line));
+    } catch(err){
+      log('Error al enviar comando: ' + err.message);
+    } finally{
+      writing = false;
+    }
+  }
+  setInterval(sendCommand, 150);
+
+  // ---------------- Volante por inclinación (iPad) ----------------
+  async function enableMotion(){
+    if (typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function'){
+      try{
+        const res = await DeviceOrientationEvent.requestPermission();
+        if (res !== 'granted'){
+          log('Permiso de sensores de movimiento denegado.');
+          return;
+        }
+      } catch(err){
+        log('Error al pedir permiso de sensores: ' + err.message);
+        return;
+      }
+    }
+    window.addEventListener('deviceorientation', onOrientation);
+    log('Sensores de movimiento activados.');
+  }
+
+  function onOrientation(event){
+    if (event.gamma === null) return;
+    currentGamma = event.gamma;
+    const adjusted = currentGamma - calibrationOffset;
+    const clamped = Math.max(-45, Math.min(45, adjusted));
+    steerValue = Math.round((clamped / 45) * 100);
+    updateWheelUI(clamped);
+  }
+
+  function calibrateCenter(){
+    calibrationOffset = currentGamma;
+    log('Volante centrado.');
+  }
+
+  function updateWheelUI(angleDeg){
+    el('wheelNeedle').setAttribute('transform', `rotate(${angleDeg} 100 100)`);
+    el('wheelAngleReadout').innerHTML = Math.round(angleDeg) + '&deg;';
+  }
+
+  // marcas del volante cada 15°
+  (function drawTicks(){
+    const g = el('wheelTicks');
+    for (let a = -90; a <= 90; a += 15){
+      const rad = (a - 90) * Math.PI / 180;
+      const x1 = 100 + 92 * Math.cos(rad), y1 = 100 + 92 * Math.sin(rad);
+      const x2 = 100 + 82 * Math.cos(rad), y2 = 100 + 82 * Math.sin(rad);
+      const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+      line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+      g.appendChild(line);
+    }
+  })();
+
+  // ---------------- Acelerador ----------------
+  el('throttle').addEventListener('input', (e) => {
+    throttleValue = parseInt(e.target.value, 10);
+    el('throttleReadout').textContent = throttleValue;
+  });
+
+  // ---------------- Claxon (suena mientras se mantiene presionado) ----------------
+  const claxonBtn = el('claxonBtn');
+  ['pointerdown'].forEach(ev => claxonBtn.addEventListener(ev, (e) => { e.preventDefault(); hornActive = true; }));
+  ['pointerup','pointerleave','pointercancel'].forEach(ev => claxonBtn.addEventListener(ev, () => { hornActive = false; }));
+
+  // ---------------- Parada de emergencia ----------------
+  el('stopBtn').addEventListener('click', () => {
+    throttleValue = 0;
+    el('throttle').value = 0;
+    el('throttleReadout').textContent = 0;
+    log('PARADA DE EMERGENCIA enviada.');
+  });
+
+  // ---------------- Telemetría UI ----------------
+  function updateTelemetryUI(dist, gasRaw, gasPct, alarm){
+    const distText = (dist < 0) ? '-- (fuera de rango)' : dist + ' cm';
+    el('distReadout').textContent = distText;
+    const distPct = (dist < 0) ? 0 : Math.max(0, Math.min(100, 100 - (dist / 200) * 100));
+    const distBar = el('distBar');
+    distBar.style.width = distPct + '%';
+    distBar.classList.toggle('danger', dist >= 0 && dist < 15);
+
+    el('gasReadout').textContent = gasPct + '%  (raw ' + gasRaw + ')';
+    el('gasBar').style.width = gasPct + '%';
+    document.body.classList.toggle('gas-alarm', alarm);
+  }
+
+  // ---------------- Botones ----------------
+  el('connectBtn').addEventListener('click', connectBLE);
+  el('motionBtn').addEventListener('click', enableMotion);
+  el('calibrateBtn').addEventListener('click', calibrateCenter);
+
+  window.addEventListener('load', () => {
+    if (!navigator.bluetooth){
+      el('bleWarning').style.display = 'block';
+    }
+  });
+</script>
+</body>
+</html>
