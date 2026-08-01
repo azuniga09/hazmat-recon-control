@@ -167,7 +167,7 @@
     <button class="ctrl" id="motionBtn">Habilitar sensores</button>
   </div>
   <div class="row">
-    <button class="ctrl" id="calibrateBtn">Centrar volante</button>
+    <button class="ctrl" id="calibrateBtn">Calibrar posición neutral</button>
     <button class="ctrl stop" id="stopBtn">PARAR</button>
   </div>
 
@@ -185,14 +185,14 @@
       </svg>
     </div>
     <div id="wheelAngleReadout" class="mono">0&deg;</div>
-    <div class="wheel-hint">Sostén el iPad como un volante y gíralo. Usa "Centrar volante" con las llantas rectas.</div>
+    <div class="wheel-hint" id="wheelHint">Sostén el iPad con ambas manos como un volante: gíralo de lado a lado para dar vuelta, e inclínalo adelante/atrás para acelerar y frenar. Sostenlo quieto en tu posición cómoda y presiona "Calibrar" antes de arrancar.</div>
   </div>
 
   <div class="panel">
     <div class="panel-title">Tracción</div>
     <div class="drive-row">
       <div class="throttle-box">
-        <span class="label">Acelerador</span>
+        <span class="label" id="throttleLabel">Acelerador (manual)</span>
         <div class="throttle-wrap">
           <input type="range" id="throttle" min="-100" max="100" value="0" step="1">
         </div>
@@ -245,9 +245,16 @@
   let steerValue = 0;
   let throttleValue = 0;
   let hornActive = false;
+  let emergencyStop = false;
+  let motionEnabled = false;
 
   let currentGamma = 0;
-  let calibrationOffset = 0;
+  let gammaOffset = 0;
+  let currentBeta = 0;
+  let betaOffset = 0;
+
+  const STEER_RANGE_DEG = 45;    // inclinación lateral que equivale a giro máximo
+  const THROTTLE_RANGE_DEG = 25; // inclinación adelante/atrás que equivale a velocidad máxima
 
   const el = (id) => document.getElementById(id);
 
@@ -324,7 +331,10 @@
 
   async function sendCommand(){
     if (!connected || !bleChar || writing) return;
-    const line = `C,${steerValue},${throttleValue},${hornActive ? 1 : 0}\n`;
+    const s = emergencyStop ? 0 : steerValue;
+    const t = emergencyStop ? 0 : throttleValue;
+    const h = emergencyStop ? 0 : (hornActive ? 1 : 0);
+    const line = `C,${s},${t},${h}\n`;
     try{
       writing = true;
       await bleChar.writeValue(new TextEncoder().encode(line));
@@ -335,6 +345,13 @@
     }
   }
   setInterval(sendCommand, 150);
+
+  // refleja el paro de emergencia también en la UI del acelerador,
+  // aunque el sensor de inclinación lo siga leyendo de fondo
+  function reflectThrottleUI(val){
+    el('throttle').value = val;
+    el('throttleReadout').textContent = val;
+  }
 
   // ---------------- Volante por inclinación (iPad) ----------------
   async function enableMotion(){
@@ -352,21 +369,34 @@
       }
     }
     window.addEventListener('deviceorientation', onOrientation);
-    log('Sensores de movimiento activados.');
+    motionEnabled = true;
+    const throttleEl = el('throttle');
+    throttleEl.disabled = true;
+    el('throttleLabel').textContent = 'Acelerador (inclinación)';
+    log('Sensores de movimiento activados: gira de lado a lado para dar vuelta, inclina adelante/atrás para acelerar/frenar.');
   }
 
   function onOrientation(event){
-    if (event.gamma === null) return;
-    currentGamma = event.gamma;
-    const adjusted = currentGamma - calibrationOffset;
-    const clamped = Math.max(-45, Math.min(45, adjusted));
-    steerValue = Math.round((clamped / 45) * 100);
-    updateWheelUI(clamped);
+    if (event.gamma !== null){
+      currentGamma = event.gamma;
+      const adjustedSteer = currentGamma - gammaOffset;
+      const clampedSteer = Math.max(-STEER_RANGE_DEG, Math.min(STEER_RANGE_DEG, adjustedSteer));
+      steerValue = Math.round((clampedSteer / STEER_RANGE_DEG) * 100);
+      updateWheelUI(clampedSteer);
+    }
+    if (event.beta !== null){
+      currentBeta = event.beta;
+      const adjustedThrottle = currentBeta - betaOffset;
+      const clampedThrottle = Math.max(-THROTTLE_RANGE_DEG, Math.min(THROTTLE_RANGE_DEG, adjustedThrottle));
+      throttleValue = Math.round((clampedThrottle / THROTTLE_RANGE_DEG) * 100);
+      if (motionEnabled) reflectThrottleUI(throttleValue);
+    }
   }
 
   function calibrateCenter(){
-    calibrationOffset = currentGamma;
-    log('Volante centrado.');
+    gammaOffset = currentGamma;
+    betaOffset = currentBeta;
+    log('Posición neutral calibrada (auto detenido, llantas rectas).');
   }
 
   function updateWheelUI(angleDeg){
@@ -388,8 +418,9 @@
     }
   })();
 
-  // ---------------- Acelerador ----------------
+  // ---------------- Acelerador manual (solo antes de activar sensores) ----------------
   el('throttle').addEventListener('input', (e) => {
+    if (motionEnabled) return; // la inclinación ya tiene el control
     throttleValue = parseInt(e.target.value, 10);
     el('throttleReadout').textContent = throttleValue;
   });
@@ -399,12 +430,16 @@
   ['pointerdown'].forEach(ev => claxonBtn.addEventListener(ev, (e) => { e.preventDefault(); hornActive = true; }));
   ['pointerup','pointerleave','pointercancel'].forEach(ev => claxonBtn.addEventListener(ev, () => { hornActive = false; }));
 
-  // ---------------- Parada de emergencia ----------------
-  el('stopBtn').addEventListener('click', () => {
-    throttleValue = 0;
-    el('throttle').value = 0;
-    el('throttleReadout').textContent = 0;
-    log('PARADA DE EMERGENCIA enviada.');
+  // ---------------- Parada de emergencia (seguro, no momentánea) ----------------
+  // Se queda "puesta" aunque sigas inclinando el iPad, hasta que la liberes
+  // a propósito — si no fuera así, el siguiente dato del sensor la anularía
+  // de inmediato.
+  const stopBtn = el('stopBtn');
+  stopBtn.addEventListener('click', () => {
+    emergencyStop = !emergencyStop;
+    stopBtn.textContent = emergencyStop ? 'REANUDAR' : 'PARAR';
+    stopBtn.classList.toggle('primary', emergencyStop);
+    log(emergencyStop ? 'PARADA DE EMERGENCIA activada (seguro puesto).' : 'Seguro liberado, control reanudado.');
   });
 
   // ---------------- Telemetría UI ----------------
