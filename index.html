@@ -3,153 +3,234 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>HAZMAT-RECON // Consola de control</title>
+<title>NOVA-RECON // Consola de Mando</title>
 <style>
   :root{
-    --bg:#0a0e0d;
-    --panel:#121917;
-    --panel-2:#0e1412;
-    --line:#23302c;
-    --text:#e7ece7;
-    --text-dim:#8aa098;
-    --cyan:#2de6c2;
-    --amber:#ffa733;
-    --red:#ff4433;
+    --bg:#05060f;
+    --panel:rgba(15,20,40,.55);
+    --panel-2:rgba(10,14,28,.6);
+    --line:rgba(130,170,255,.18);
+    --text:#eaf2ff;
+    --text-dim:#7f8fb8;
+    --cyan:#35e6ff;
+    --magenta:#b968ff;
+    --green:#3ddc97;
+    --blue:#6a8dff;
+    --amber:#ffb020;
+    --red:#ff4d6d;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{
-    margin:0; padding:0; height:100%;
+    margin:0; padding:0; min-height:100%;
     background:var(--bg); color:var(--text);
     font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     overflow-x:hidden;
     user-select:none;
+    position:relative;
   }
   .mono{ font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  .dim{ color:var(--text-dim); font-weight:400; text-transform:none; letter-spacing:0; }
   .label{
-    font-size:11px; letter-spacing:.14em; text-transform:uppercase;
-    color:var(--text-dim); font-weight:700;
+    font-size:11px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--text-dim); font-weight:700; display:block; margin-bottom:6px;
   }
+
+  /* ---------- fondo espacial ---------- */
+  .starfield{
+    position:fixed; inset:0; z-index:0; pointer-events:none; opacity:.55;
+    background-image:
+      radial-gradient(1.6px 1.6px at 24px 32px, rgba(255,255,255,.9), transparent),
+      radial-gradient(1.2px 1.2px at 96px 128px, rgba(255,255,255,.7), transparent),
+      radial-gradient(1.4px 1.4px at 168px 64px, rgba(255,255,255,.55), transparent),
+      radial-gradient(1.8px 1.8px at 220px 190px, rgba(255,255,255,.8), transparent),
+      radial-gradient(1px 1px at 270px 44px, rgba(255,255,255,.6), transparent),
+      radial-gradient(1.3px 1.3px at 60px 210px, rgba(255,255,255,.5), transparent);
+    background-repeat:repeat;
+    background-size:300px 240px;
+  }
+  .starfield.deep{
+    opacity:.3; background-size:520px 420px; animation: drift 90s linear infinite;
+  }
+  @keyframes drift{ from{ background-position:0 0; } to{ background-position:-520px 420px; } }
+  .nebula{ position:fixed; border-radius:50%; filter:blur(70px); z-index:0; pointer-events:none; }
+  .nebula-a{ width:360px; height:360px; top:-110px; left:-120px; background:radial-gradient(circle, rgba(185,104,255,.32), transparent 70%); }
+  .nebula-b{ width:400px; height:400px; bottom:-140px; right:-130px; background:radial-gradient(circle, rgba(53,230,255,.24), transparent 70%); }
 
   header{
+    position:relative; z-index:1;
     display:flex; align-items:center; justify-content:space-between;
-    padding:14px 16px; border-bottom:1px solid var(--line);
-    background:linear-gradient(180deg, var(--panel), var(--bg));
+    padding:16px 18px; border-bottom:1px solid var(--line);
   }
-  header h1{
-    font-size:16px; margin:0; letter-spacing:.1em; font-weight:800;
+  .brand h1{ margin:0; font-size:17px; letter-spacing:.14em; font-weight:800; }
+  .brand h1 span{ color:var(--cyan); text-shadow:0 0 14px rgba(53,230,255,.55); }
+  .brand-sub{ font-size:10.5px; color:var(--text-dim); letter-spacing:.1em; margin-top:2px; text-transform:uppercase; }
+  .badge{
+    font-size:10.5px; letter-spacing:.08em; padding:7px 13px;
+    border-radius:20px; border:1px solid rgba(130,170,255,.3);
+    white-space:nowrap;
   }
-  header h1 span{ color:var(--amber); }
-  #statusBadge{
-    font-size:11px; letter-spacing:.08em; padding:6px 10px;
-    border-radius:3px; border:1px solid var(--line);
-    font-family: ui-monospace, monospace;
-  }
-  #statusBadge.ok{ color:#0a0e0d; background:var(--cyan); border-color:var(--cyan);}
-  #statusBadge.off{ color:var(--text-dim); }
+  .badge.ok{ color:#04120f; background:var(--cyan); border-color:var(--cyan); box-shadow:0 0 16px rgba(53,230,255,.5); }
+  .badge.off{ color:var(--text-dim); }
 
   #bleWarning{
-    display:none; padding:10px 16px; background:#3a2200; color:var(--amber);
+    position:relative; z-index:1;
+    display:none; padding:10px 18px; background:rgba(255,176,32,.1); color:#ffe3b0;
     font-size:13px; border-bottom:1px solid var(--line); line-height:1.5;
   }
-  #bleWarning b{ color:#ffcf8a; }
+  #bleWarning b{ color:var(--amber); }
 
-  main{ padding:14px 16px 24px; max-width:640px; margin:0 auto; }
+  main{ position:relative; z-index:1; padding:16px 16px 26px; max-width:640px; margin:0 auto; }
 
-  .row{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
   button.ctrl{
-    flex:1; min-width:130px;
-    background:var(--panel); color:var(--text);
-    border:1px solid var(--line); border-radius:6px;
-    padding:12px 10px; font-size:13px; font-weight:700;
+    flex:1; min-width:140px;
+    background: rgba(20,26,50,.7); color:var(--text);
+    border:1px solid rgba(130,170,255,.28); border-radius:10px;
+    padding:13px 10px; font-size:12.5px; font-weight:700;
     letter-spacing:.04em; text-transform:uppercase;
   }
-  button.ctrl:active{ background:#1a2320; }
+  button.ctrl:active{ background:rgba(53,230,255,.15); }
   button.ctrl.primary{ border-color:var(--cyan); color:var(--cyan); }
   button.ctrl.stop{ border-color:var(--red); color:var(--red); }
+  button.ctrl.stop.armed{ background:var(--red); color:#1c0a0d; box-shadow:0 0 22px rgba(255,77,109,.6); }
 
   .panel{
     background:var(--panel); border:1px solid var(--line);
-    border-radius:8px; padding:14px; margin-bottom:14px;
+    border-radius:16px; padding:16px; margin-bottom:14px;
+    backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+    box-shadow:0 10px 32px rgba(0,0,0,.35);
   }
   .panel-title{
     font-size:11px; letter-spacing:.14em; text-transform:uppercase;
     color:var(--text-dim); margin-bottom:10px; font-weight:700;
   }
 
-  /* ---- volante / indicador de actitud ---- */
-  .wheel-wrap{ display:flex; justify-content:center; padding:6px 0 4px; }
-  #wheelSvg{ width:220px; height:220px; }
-  #wheelAngleReadout{
-    text-align:center; font-size:26px; font-weight:800;
-    font-family: ui-monospace, monospace; color:var(--cyan);
-    margin-top:2px;
-  }
-  .wheel-hint{ text-align:center; font-size:12px; color:var(--text-dim); margin-top:2px;}
+  /* ---------- retícula de vuelo (control principal) ---------- */
+  .reticle-wrap{ display:flex; justify-content:center; padding:4px 0 2px; }
+  #reticleSvg{ width:250px; height:250px; }
+  .ring{ fill:none; stroke:rgba(130,170,255,.32); stroke-width:1.4; }
+  .ring-dim{ fill:none; stroke:rgba(130,170,255,.16); stroke-width:1; stroke-dasharray:2 4; }
+  .tick{ stroke:rgba(130,170,255,.28); stroke-width:1.4; }
+  .crosshair{ stroke:rgba(130,170,255,.16); stroke-width:1; }
+  .axis-label{ fill:var(--text-dim); font-size:8.5px; letter-spacing:.08em; font-family: ui-monospace, monospace; }
+  #reticleTrail{ fill:rgba(53,230,255,.14); }
+  #reticleDot{ fill:var(--cyan); filter:drop-shadow(0 0 7px rgba(53,230,255,.9)); transition:cx .12s linear, cy .12s linear; }
+  .reticle-readouts{ display:flex; justify-content:center; gap:30px; margin-top:2px; }
+  .reticle-readouts div{ text-align:center; }
+  .reticle-readouts .val{ font-size:17px; color:var(--cyan); }
+  .reticle-hint{ text-align:center; font-size:11.5px; color:var(--text-dim); margin-top:8px; line-height:1.5; }
 
-  /* ---- throttle + claxon ---- */
-  .drive-row{ display:flex; gap:14px; align-items:stretch; }
-  .throttle-box{
-    display:flex; flex-direction:column; align-items:center; gap:6px;
-    width:110px;
-  }
-  .throttle-wrap{
-    width:90px; height:220px; display:flex; align-items:center; justify-content:center;
-  }
-  #throttle{
-    -webkit-appearance:none; appearance:none;
-    width:220px; height:38px; background:transparent; transform:rotate(-90deg);
-  }
-  #throttle::-webkit-slider-runnable-track{
-    height:8px; background:var(--line); border-radius:4px;
-  }
-  #throttle::-webkit-slider-thumb{
-    -webkit-appearance:none; width:34px; height:34px; margin-top:-13px;
-    border-radius:50%; background:var(--cyan); border:3px solid #06110d;
-  }
-  #throttleReadout{ font-family:ui-monospace, monospace; font-size:15px; color:var(--cyan); }
-
-  .side-box{ flex:1; display:flex; flex-direction:column; gap:10px; justify-content:center; }
+  /* ---------- claxon ---------- */
   #claxonBtn{
-    flex:1; min-height:120px;
-    background:repeating-linear-gradient(45deg, #2a1c00, #2a1c00 10px, #1c1400 10px, #1c1400 20px);
-    border:2px solid var(--amber); color:var(--amber);
-    border-radius:8px; font-size:16px; font-weight:800; letter-spacing:.12em;
+    width:100%; min-height:64px;
+    background:linear-gradient(180deg, rgba(255,176,32,.12), rgba(255,176,32,.02));
+    border:1.5px solid var(--amber); color:var(--amber);
+    border-radius:12px; font-size:14px; font-weight:800; letter-spacing:.14em;
   }
-  #claxonBtn:active{ background:var(--amber); color:#1c1400; }
+  #claxonBtn:active{ background:var(--amber); color:#1c1400; box-shadow:0 0 28px rgba(255,176,32,.7); }
 
-  /* ---- telemetría ---- */
-  .metric{ margin-bottom:14px; }
-  .metric:last-child{ margin-bottom:0; }
-  .metric-top{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
-  .metric-val{ font-family:ui-monospace, monospace; font-size:16px; color:var(--text); }
-  .bar-track{ height:10px; background:var(--panel-2); border:1px solid var(--line); border-radius:5px; overflow:hidden; }
-  .bar-fill{ height:100%; width:0%; background:var(--cyan); transition:width .25s ease; }
-  .bar-fill.danger{ background:var(--red); }
-  #gasBar{ background:var(--cyan); }
-  body.gas-alarm #gasBar{ background:var(--red); }
+  /* ---------- sonar (distancia) ---------- */
+  .gauge-wrap{ display:flex; justify-content:center; }
+  #sonarSvg{ width:250px; height:138px; }
+  .gauge-track{ fill:none; stroke:rgba(130,170,255,.16); stroke-width:10; stroke-linecap:round; }
+  .gauge-fill{ fill:none; stroke:var(--cyan); stroke-width:10; stroke-linecap:round; filter:drop-shadow(0 0 6px rgba(53,230,255,.55)); }
+  .gauge-fill.danger{ stroke:var(--red); filter:drop-shadow(0 0 8px rgba(255,77,109,.7)); }
+  .needle{ stroke:#eaf2ff; stroke-width:3; stroke-linecap:round; transform-origin:100px 100px; transition:transform .25s ease; }
+  .needle-hub{ fill:#eaf2ff; }
+  .center{ text-align:center; }
 
-  #alarmBanner{
-    display:none; align-items:center; gap:8px;
-    margin-top:10px; padding:8px 10px; border-radius:6px;
-    background:#3a0d0a; border:1px solid var(--red); color:#ffb3ab;
-    font-size:12px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+  /* ---------- atmósfera: anillos radiales ---------- */
+  .atmos-hero-wrap{ display:flex; flex-direction:column; align-items:center; gap:10px; margin-bottom:16px; }
+  .atmos-hero{
+    position:relative; width:168px; height:168px;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:50%;
   }
-  body.gas-alarm #alarmBanner{ display:flex; }
+  .atmos-hero.alarm{ animation: heroPulseBg 1s ease-in-out infinite; }
+  @keyframes heroPulseBg{
+    0%,100%{ box-shadow:0 0 0 0 rgba(255,77,109,.0); }
+    50%{ box-shadow:0 0 34px 6px rgba(255,77,109,.45); }
+  }
+  #ringSvgHero{ width:168px; height:168px; position:absolute; inset:0; }
+  .ring-track{ fill:none; stroke:rgba(130,170,255,.14); stroke-width:9; }
+  .ring-fill{ fill:none; stroke-width:9; stroke-linecap:round; transition:stroke-dashoffset .3s ease; }
+  .ring-fill.cyan{ stroke:var(--cyan); animation:glowCyan 2.6s ease-in-out infinite; }
+  .ring-fill.magenta{ stroke:var(--magenta); animation:glowMagenta 2.6s ease-in-out infinite; }
+  .ring-fill.green{ stroke:var(--green); animation:glowGreen 2.6s ease-in-out infinite; }
+  .ring-fill.blue{ stroke:var(--blue); animation:glowBlue 2.6s ease-in-out infinite; }
+  .ring-fill.co2-normal{ stroke:var(--green); filter:drop-shadow(0 0 8px rgba(61,220,151,.6)); }
+  .ring-fill.co2-elevado{ stroke:var(--amber); animation:glowAmber 1.8s ease-in-out infinite; }
+  .ring-fill.co2-peligro{ stroke:var(--red); animation:glowRed 1s ease-in-out infinite; }
+  @keyframes glowCyan{ 0%,100%{filter:drop-shadow(0 0 5px rgba(53,230,255,.5));} 50%{filter:drop-shadow(0 0 12px rgba(53,230,255,.9));} }
+  @keyframes glowMagenta{ 0%,100%{filter:drop-shadow(0 0 5px rgba(185,104,255,.5));} 50%{filter:drop-shadow(0 0 12px rgba(185,104,255,.9));} }
+  @keyframes glowGreen{ 0%,100%{filter:drop-shadow(0 0 5px rgba(61,220,151,.5));} 50%{filter:drop-shadow(0 0 12px rgba(61,220,151,.9));} }
+  @keyframes glowBlue{ 0%,100%{filter:drop-shadow(0 0 5px rgba(106,141,255,.5));} 50%{filter:drop-shadow(0 0 12px rgba(106,141,255,.9));} }
+  @keyframes glowAmber{ 0%,100%{filter:drop-shadow(0 0 6px rgba(255,176,32,.6));} 50%{filter:drop-shadow(0 0 14px rgba(255,176,32,1));} }
+  @keyframes glowRed{ 0%,100%{filter:drop-shadow(0 0 7px rgba(255,77,109,.6));} 50%{filter:drop-shadow(0 0 16px rgba(255,77,109,1));} }
+  .ring-pulse{ fill:none; stroke:var(--red); stroke-width:2; opacity:0; transform-origin:84px 84px; }
+  .atmos-hero.alarm .ring-pulse{ animation:ringPing 1.4s ease-out infinite; }
+  @keyframes ringPing{ 0%{ transform:scale(.82); opacity:.55; } 100%{ transform:scale(1.05); opacity:0; } }
+  .ring-center{ position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; }
+  .ring-number{ font-size:30px; font-weight:800; line-height:1; color:var(--text); }
+  .ring-unit{ font-size:10px; color:var(--text-dim); letter-spacing:.1em; text-transform:uppercase; margin-top:3px; }
+  .co2-pill{
+    font-size:10.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+    padding:6px 14px; border-radius:20px; border:1px solid; white-space:nowrap;
+  }
+  .co2-pill.normal{ color:var(--green); border-color:var(--green); background:rgba(61,220,151,.1); }
+  .co2-pill.elevado{ color:var(--amber); border-color:var(--amber); background:rgba(255,176,32,.1); }
+  .co2-pill.peligro{ color:var(--red); border-color:var(--red); background:rgba(255,77,109,.12); box-shadow:0 0 16px rgba(255,77,109,.4); }
+  .co2-pill.calentando{ color:var(--text-dim); border-color:var(--line); }
 
-  /* ---- log ---- */
-  details{ border:1px solid var(--line); border-radius:8px; background:var(--panel); }
-  summary{ padding:10px 14px; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--text-dim); cursor:pointer; }
+  .atmos-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .atmos-sat{
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    padding:12px 6px 12px; border-radius:14px;
+    background:rgba(10,14,28,.4); border:1px solid var(--line);
+    transition: box-shadow .3s ease;
+  }
+  .atmos-sat.alarm{ animation:satPulse 1s ease-in-out infinite; }
+  @keyframes satPulse{
+    0%,100%{ box-shadow:0 0 0 0 rgba(255,77,109,0); }
+    50%{ box-shadow:0 0 18px 3px rgba(255,77,109,.5); }
+  }
+  .ring-gauge-sat{ width:92px; height:92px; }
+  .ring-center-sat{ display:flex; flex-direction:column; align-items:center; margin-top:-70px; }
+  .ring-number-sm{ font-size:15px; font-weight:800; color:var(--text); }
+  .sat-label{ font-size:9.5px; letter-spacing:.05em; text-transform:uppercase; color:var(--text-dim); text-align:center; margin-top:4px; line-height:1.3; }
+
+  .alarm-chips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+  .alarm-chip{
+    display:none; align-items:center; gap:6px;
+    padding:7px 12px; border-radius:20px; font-size:10.5px; font-weight:700;
+    letter-spacing:.05em; text-transform:uppercase;
+    background:rgba(255,176,32,.12); border:1px solid var(--amber); color:#ffe3b0;
+  }
+  .alarm-chip.active{ display:inline-flex; }
+  .alarm-chip.red{ background:rgba(255,77,109,.14); border-color:var(--red); color:#ffc2cd; }
+
+  /* ---------- log ---------- */
+  details{ border:1px solid var(--line); border-radius:14px; background:var(--panel); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
+  summary{ padding:11px 16px; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--text-dim); cursor:pointer; }
   #logPanel{
-    margin:0; padding:10px 14px 14px; font-size:11px; color:var(--text-dim);
+    margin:0; padding:10px 16px 16px; font-size:11px; color:var(--text-dim);
     max-height:150px; overflow-y:auto; white-space:pre-wrap; line-height:1.5;
   }
 </style>
 </head>
 <body>
 
+<div class="starfield"></div>
+<div class="starfield deep"></div>
+<div class="nebula nebula-a"></div>
+<div class="nebula nebula-b"></div>
+
 <header>
-  <h1>HAZMAT<span>-RECON</span> // Consola</h1>
-  <div id="statusBadge" class="off mono">BLE: DESCONECTADO</div>
+  <div class="brand">
+    <h1>NOVA<span>-RECON</span></h1>
+    <div class="brand-sub">Sonda de detección de gases</div>
+  </div>
+  <div id="statusBadge" class="badge off mono">ENLACE: DESCONECTADO</div>
 </header>
 
 <div id="bleWarning">
@@ -163,8 +244,8 @@
 <main>
 
   <div class="row">
-    <button class="ctrl primary" id="connectBtn">Conectar BLE</button>
-    <button class="ctrl" id="motionBtn">Habilitar sensores</button>
+    <button class="ctrl primary" id="connectBtn">Conectar enlace BLE</button>
+    <button class="ctrl" id="motionBtn">Activar acelerómetro</button>
   </div>
   <div class="row">
     <button class="ctrl" id="calibrateBtn">Calibrar posición neutral</button>
@@ -172,58 +253,111 @@
   </div>
 
   <div class="panel">
-    <div class="panel-title">Volante (inclina el iPad)</div>
-    <div class="wheel-wrap">
-      <svg id="wheelSvg" viewBox="0 0 200 200">
-        <circle cx="100" cy="100" r="92" fill="none" stroke="#23302c" stroke-width="2"/>
-        <g id="wheelTicks" stroke="#23302c" stroke-width="2"></g>
-        <circle cx="100" cy="100" r="70" fill="none" stroke="#1a2320" stroke-width="1"/>
-        <g id="wheelNeedle" transform="rotate(0 100 100)">
-          <line x1="100" y1="100" x2="100" y2="24" stroke="#2de6c2" stroke-width="6" stroke-linecap="round"/>
-          <circle cx="100" cy="100" r="10" fill="#2de6c2"/>
-        </g>
+    <div class="panel-title">Control de vuelo <span class="dim">— inclina el iPad</span></div>
+    <div class="reticle-wrap">
+      <svg id="reticleSvg" viewBox="0 0 200 200">
+        <circle class="ring" cx="100" cy="100" r="88"/>
+        <circle class="ring" cx="100" cy="100" r="60"/>
+        <circle class="ring-dim" cx="100" cy="100" r="32"/>
+        <g id="reticleTicks"></g>
+        <line class="crosshair" x1="100" y1="14" x2="100" y2="186"/>
+        <line class="crosshair" x1="14" y1="100" x2="186" y2="100"/>
+        <text class="axis-label" x="100" y="24" text-anchor="middle">AVANCE</text>
+        <text class="axis-label" x="100" y="180" text-anchor="middle">REVERSA</text>
+        <text class="axis-label" x="22" y="103" text-anchor="start">IZQ</text>
+        <text class="axis-label" x="178" y="103" text-anchor="end">DER</text>
+        <circle id="reticleTrail" cx="100" cy="100" r="15"/>
+        <circle id="reticleDot" cx="100" cy="100" r="6.5"/>
       </svg>
     </div>
-    <div id="wheelAngleReadout" class="mono">0&deg;</div>
-    <div class="wheel-hint" id="wheelHint">Sostén el iPad con ambas manos como un volante: gíralo de lado a lado para dar vuelta, e inclínalo adelante/atrás para acelerar y frenar. Sostenlo quieto en tu posición cómoda y presiona "Calibrar" antes de arrancar.</div>
+    <div class="reticle-readouts">
+      <div><span class="label">Velocidad</span><span id="throttleReadout" class="mono val">0%</span></div>
+      <div><span class="label">Giro</span><span id="steerReadout" class="mono val">0°</span></div>
+    </div>
+    <div class="reticle-hint">Sostén el iPad con ambas manos. Inclina adelante/atrás (eje X) para acelerar y frenar, de lado a lado (eje Y) para girar. Quédate quieto en tu posición cómoda y presiona "Calibrar" antes de arrancar.</div>
   </div>
 
   <div class="panel">
-    <div class="panel-title">Tracción</div>
-    <div class="drive-row">
-      <div class="throttle-box">
-        <span class="label" id="throttleLabel">Acelerador (manual)</span>
-        <div class="throttle-wrap">
-          <input type="range" id="throttle" min="-100" max="100" value="0" step="1">
+    <div class="panel-title">Claxon</div>
+    <button id="claxonBtn">CLAXON</button>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Distancia — sonar frontal</div>
+    <div class="gauge-wrap">
+      <svg id="sonarSvg" viewBox="0 0 200 110">
+        <path class="gauge-track" d="M 14 100 A 86 86 0 0 1 186 100"/>
+        <path id="sonarFill" class="gauge-fill" d="M 14 100 A 86 86 0 0 1 186 100"/>
+        <line id="sonarNeedle" x1="100" y1="100" x2="100" y2="26" class="needle"/>
+        <circle cx="100" cy="100" r="6" class="needle-hub"/>
+      </svg>
+    </div>
+    <div id="distReadout" class="metric-val center mono">--</div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Atmósfera — análisis de gases</div>
+
+    <div class="atmos-hero-wrap">
+      <div class="atmos-hero" id="co2HeroWrap">
+        <svg id="ringSvgHero" viewBox="0 0 168 168">
+          <circle class="ring-track" cx="84" cy="84" r="68"/>
+          <circle id="co2RingFill" class="ring-fill" cx="84" cy="84" r="68" transform="rotate(-90 84 84)"/>
+          <circle id="co2RingPulse" class="ring-pulse" cx="84" cy="84" r="68"/>
+        </svg>
+        <div class="ring-center">
+          <span id="co2Value" class="ring-number mono">--</span>
+          <span class="ring-unit">ppm CO2</span>
         </div>
-        <div id="throttleReadout" class="mono">0</div>
       </div>
-      <div class="side-box">
-        <button id="claxonBtn">CLAXON</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="panel">
-    <div class="panel-title">Telemetría</div>
-
-    <div class="metric">
-      <div class="metric-top">
-        <span class="label">Distancia (ultrasónico)</span>
-        <span id="distReadout" class="metric-val">--</span>
-      </div>
-      <div class="bar-track"><div id="distBar" class="bar-fill"></div></div>
+      <div id="co2Pill" class="co2-pill calentando">CALENTANDO</div>
     </div>
 
-    <div class="metric">
-      <div class="metric-top">
-        <span class="label">Gas / humo (MQ-2)</span>
-        <span id="gasReadout" class="metric-val">--</span>
+    <div class="atmos-grid">
+      <div class="atmos-sat" id="gas1Wrap">
+        <svg class="ring-gauge-sat" viewBox="0 0 110 110">
+          <circle class="ring-track" cx="55" cy="55" r="45"/>
+          <circle id="gas1RingFill" class="ring-fill cyan" cx="55" cy="55" r="45" transform="rotate(-90 55 55)"/>
+        </svg>
+        <div class="ring-center-sat"><span id="gas1Value" class="ring-number-sm mono">0%</span></div>
+        <span class="sat-label">MQ-2<br>Combustible</span>
       </div>
-      <div class="bar-track"><div id="gasBar" class="bar-fill"></div></div>
+
+      <div class="atmos-sat" id="gas2Wrap">
+        <svg class="ring-gauge-sat" viewBox="0 0 110 110">
+          <circle class="ring-track" cx="55" cy="55" r="45"/>
+          <circle id="gas2RingFill" class="ring-fill magenta" cx="55" cy="55" r="45" transform="rotate(-90 55 55)"/>
+        </svg>
+        <div class="ring-center-sat"><span id="gas2Value" class="ring-number-sm mono">0%</span></div>
+        <span class="sat-label">MQ-7<br>Monóxido CO</span>
+      </div>
+
+      <div class="atmos-sat" id="gas3Wrap">
+        <svg class="ring-gauge-sat" viewBox="0 0 110 110">
+          <circle class="ring-track" cx="55" cy="55" r="45"/>
+          <circle id="gas3RingFill" class="ring-fill green" cx="55" cy="55" r="45" transform="rotate(-90 55 55)"/>
+        </svg>
+        <div class="ring-center-sat"><span id="gas3Value" class="ring-number-sm mono">0%</span></div>
+        <span class="sat-label">MQ-6<br>Butano / GLP</span>
+      </div>
+
+      <div class="atmos-sat" id="gas4Wrap">
+        <svg class="ring-gauge-sat" viewBox="0 0 110 110">
+          <circle class="ring-track" cx="55" cy="55" r="45"/>
+          <circle id="gas4RingFill" class="ring-fill blue" cx="55" cy="55" r="45" transform="rotate(-90 55 55)"/>
+        </svg>
+        <div class="ring-center-sat"><span id="gas4Value" class="ring-number-sm mono">0%</span></div>
+        <span class="sat-label">MQ-3<br>Alcohol</span>
+      </div>
     </div>
 
-    <div id="alarmBanner">&#9888; Nivel de gas por encima del umbral</div>
+    <div class="alarm-chips">
+      <div id="alarmBanner1" class="alarm-chip">&#9888; Combustible / Humo</div>
+      <div id="alarmBanner2" class="alarm-chip red">&#9888; Monóxido CO</div>
+      <div id="alarmBanner3" class="alarm-chip red">&#9888; Fuga Butano / GLP</div>
+      <div id="alarmBanner4" class="alarm-chip red">&#9888; CO2 alto</div>
+      <div id="alarmBanner5" class="alarm-chip">&#9888; Vapor de alcohol</div>
+    </div>
   </div>
 
   <details>
@@ -242,19 +376,19 @@
   let connected = false;
   let writing = false;
 
-  let steerValue = 0;
-  let throttleValue = 0;
+  let steerValue = 0;      // -100..100, eje Y (lado a lado) -> giro
+  let throttleValue = 0;   // -100..100, eje X (adelante/atrás) -> avance/reversa
   let hornActive = false;
   let emergencyStop = false;
   let motionEnabled = false;
 
-  let currentGamma = 0;
+  let currentGamma = 0;   // eje Y (lado a lado)
   let gammaOffset = 0;
-  let currentBeta = 0;
+  let currentBeta = 0;    // eje X (adelante/atrás)
   let betaOffset = 0;
 
-  const STEER_RANGE_DEG = 45;    // inclinación lateral que equivale a giro máximo
-  const THROTTLE_RANGE_DEG = 25; // inclinación adelante/atrás que equivale a velocidad máxima
+  const STEER_RANGE_DEG = 45;
+  const THROTTLE_RANGE_DEG = 25;
 
   const el = (id) => document.getElementById(id);
 
@@ -268,7 +402,7 @@
   function setStatus(isConnected){
     connected = isConnected;
     const badge = el('statusBadge');
-    badge.textContent = isConnected ? 'BLE: CONECTADO' : 'BLE: DESCONECTADO';
+    badge.textContent = isConnected ? 'ENLACE: CONECTADO' : 'ENLACE: DESCONECTADO';
     badge.classList.toggle('ok', isConnected);
     badge.classList.toggle('off', !isConnected);
   }
@@ -318,15 +452,27 @@
     }
   }
 
+  // T,<dist>,<g1raw>,<g1pct>,<g1alarm>,<g2raw>,<g2pct>,<g2alarm>,<g3raw>,<g3pct>,<g3alarm>,<g4raw>,<g4pct>,<g4alarm>,<co2ppm>,<co2alarm>
   function parseTelemetry(line){
     if (!line.startsWith('T,')) return;
     const parts = line.split(',');
-    if (parts.length < 5) return;
-    const dist   = parseInt(parts[1], 10);
-    const gasRaw = parseInt(parts[2], 10);
-    const gasPct = parseInt(parts[3], 10);
-    const alarm  = parts[4].trim() === '1';
-    updateTelemetryUI(dist, gasRaw, gasPct, alarm);
+    if (parts.length < 16) return;
+    const dist     = parseInt(parts[1], 10);
+    const g1raw    = parseInt(parts[2], 10);
+    const g1pct    = parseInt(parts[3], 10);
+    const g1alarm  = parts[4].trim() === '1';
+    const g2raw    = parseInt(parts[5], 10);
+    const g2pct    = parseInt(parts[6], 10);
+    const g2alarm  = parts[7].trim() === '1';
+    const g3raw    = parseInt(parts[8], 10);
+    const g3pct    = parseInt(parts[9], 10);
+    const g3alarm  = parts[10].trim() === '1';
+    const g4raw    = parseInt(parts[11], 10);
+    const g4pct    = parseInt(parts[12], 10);
+    const g4alarm  = parts[13].trim() === '1';
+    const co2ppm   = parseInt(parts[14], 10);
+    const co2alarm = parts[15].trim() === '1';
+    updateTelemetryUI(dist, g1raw, g1pct, g1alarm, g2raw, g2pct, g2alarm, g3raw, g3pct, g3alarm, g4raw, g4pct, g4alarm, co2ppm, co2alarm);
   }
 
   async function sendCommand(){
@@ -346,14 +492,7 @@
   }
   setInterval(sendCommand, 150);
 
-  // refleja el paro de emergencia también en la UI del acelerador,
-  // aunque el sensor de inclinación lo siga leyendo de fondo
-  function reflectThrottleUI(val){
-    el('throttle').value = val;
-    el('throttleReadout').textContent = val;
-  }
-
-  // ---------------- Volante por inclinación (iPad) ----------------
+  // ---------------- Acelerómetro: 2 ejes ----------------
   async function enableMotion(){
     if (typeof DeviceOrientationEvent !== 'undefined' &&
         typeof DeviceOrientationEvent.requestPermission === 'function'){
@@ -370,27 +509,23 @@
     }
     window.addEventListener('deviceorientation', onOrientation);
     motionEnabled = true;
-    const throttleEl = el('throttle');
-    throttleEl.disabled = true;
-    el('throttleLabel').textContent = 'Acelerador (inclinación)';
-    log('Sensores de movimiento activados: gira de lado a lado para dar vuelta, inclina adelante/atrás para acelerar/frenar.');
+    log('Acelerómetro activado: eje X (adelante/atrás) = avance/reversa, eje Y (lado a lado) = giro.');
   }
 
   function onOrientation(event){
     if (event.gamma !== null){
-      currentGamma = event.gamma;
-      const adjustedSteer = currentGamma - gammaOffset;
-      const clampedSteer = Math.max(-STEER_RANGE_DEG, Math.min(STEER_RANGE_DEG, adjustedSteer));
-      steerValue = Math.round((clampedSteer / STEER_RANGE_DEG) * 100);
-      updateWheelUI(clampedSteer);
+      currentGamma = event.gamma; // eje Y -> giro
+      const adjusted = currentGamma - gammaOffset;
+      const clamped = Math.max(-STEER_RANGE_DEG, Math.min(STEER_RANGE_DEG, adjusted));
+      steerValue = Math.round((clamped / STEER_RANGE_DEG) * 100);
     }
     if (event.beta !== null){
-      currentBeta = event.beta;
-      const adjustedThrottle = currentBeta - betaOffset;
-      const clampedThrottle = Math.max(-THROTTLE_RANGE_DEG, Math.min(THROTTLE_RANGE_DEG, adjustedThrottle));
-      throttleValue = Math.round((clampedThrottle / THROTTLE_RANGE_DEG) * 100);
-      if (motionEnabled) reflectThrottleUI(throttleValue);
+      currentBeta = event.beta; // eje X -> avance/reversa
+      const adjusted = currentBeta - betaOffset;
+      const clamped = Math.max(-THROTTLE_RANGE_DEG, Math.min(THROTTLE_RANGE_DEG, adjusted));
+      throttleValue = Math.round((clamped / THROTTLE_RANGE_DEG) * 100);
     }
+    updateReticle();
   }
 
   function calibrateCenter(){
@@ -399,31 +534,43 @@
     log('Posición neutral calibrada (auto detenido, llantas rectas).');
   }
 
-  function updateWheelUI(angleDeg){
-    el('wheelNeedle').setAttribute('transform', `rotate(${angleDeg} 100 100)`);
-    el('wheelAngleReadout').innerHTML = Math.round(angleDeg) + '&deg;';
+  function updateReticle(){
+    const R = 82;
+    let x = (steerValue / 100) * R;
+    let y = -(throttleValue / 100) * R;
+    const mag = Math.sqrt(x * x + y * y);
+    if (mag > R) { x = x / mag * R; y = y / mag * R; }
+    el('reticleDot').setAttribute('cx', 100 + x);
+    el('reticleDot').setAttribute('cy', 100 + y);
+    el('reticleTrail').setAttribute('cx', 100 + x);
+    el('reticleTrail').setAttribute('cy', 100 + y);
+    el('throttleReadout').textContent = throttleValue + '%';
+    el('steerReadout').textContent = Math.round((steerValue / 100) * STEER_RANGE_DEG) + '\u00b0';
   }
 
-  // marcas del volante cada 15°
+  // inicializa todos los anillos en 0 antes de la primera telemetría
+  (function initRings(){
+    setRingFrac(el('co2RingFill'), 68, 0);
+    setRingFrac(el('gas1RingFill'), 45, 0);
+    setRingFrac(el('gas2RingFill'), 45, 0);
+    setRingFrac(el('gas3RingFill'), 45, 0);
+    setRingFrac(el('gas4RingFill'), 45, 0);
+  })();
+
+  // marcas cada 30° en el anillo exterior de la retícula
   (function drawTicks(){
-    const g = el('wheelTicks');
-    for (let a = -90; a <= 90; a += 15){
-      const rad = (a - 90) * Math.PI / 180;
-      const x1 = 100 + 92 * Math.cos(rad), y1 = 100 + 92 * Math.sin(rad);
-      const x2 = 100 + 82 * Math.cos(rad), y2 = 100 + 82 * Math.sin(rad);
+    const g = el('reticleTicks');
+    for (let a = 0; a < 360; a += 30){
+      const rad = a * Math.PI / 180;
+      const x1 = 100 + 88 * Math.cos(rad), y1 = 100 + 88 * Math.sin(rad);
+      const x2 = 100 + 80 * Math.cos(rad), y2 = 100 + 80 * Math.sin(rad);
       const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('class', 'tick');
       line.setAttribute('x1', x1); line.setAttribute('y1', y1);
       line.setAttribute('x2', x2); line.setAttribute('y2', y2);
       g.appendChild(line);
     }
   })();
-
-  // ---------------- Acelerador manual (solo antes de activar sensores) ----------------
-  el('throttle').addEventListener('input', (e) => {
-    if (motionEnabled) return; // la inclinación ya tiene el control
-    throttleValue = parseInt(e.target.value, 10);
-    el('throttleReadout').textContent = throttleValue;
-  });
 
   // ---------------- Claxon (suena mientras se mantiene presionado) ----------------
   const claxonBtn = el('claxonBtn');
@@ -431,29 +578,93 @@
   ['pointerup','pointerleave','pointercancel'].forEach(ev => claxonBtn.addEventListener(ev, () => { hornActive = false; }));
 
   // ---------------- Parada de emergencia (seguro, no momentánea) ----------------
-  // Se queda "puesta" aunque sigas inclinando el iPad, hasta que la liberes
-  // a propósito — si no fuera así, el siguiente dato del sensor la anularía
-  // de inmediato.
   const stopBtn = el('stopBtn');
   stopBtn.addEventListener('click', () => {
     emergencyStop = !emergencyStop;
     stopBtn.textContent = emergencyStop ? 'REANUDAR' : 'PARAR';
-    stopBtn.classList.toggle('primary', emergencyStop);
+    stopBtn.classList.toggle('armed', emergencyStop);
     log(emergencyStop ? 'PARADA DE EMERGENCIA activada (seguro puesto).' : 'Seguro liberado, control reanudado.');
   });
 
-  // ---------------- Telemetría UI ----------------
-  function updateTelemetryUI(dist, gasRaw, gasPct, alarm){
+  // ---------------- Sonar (gauge de distancia) ----------------
+  const sonarFillEl = el('sonarFill');
+  const sonarLen = sonarFillEl.getTotalLength();
+  sonarFillEl.style.strokeDasharray = sonarLen;
+  sonarFillEl.style.strokeDashoffset = sonarLen;
+
+  function updateSonar(dist){
     const distText = (dist < 0) ? '-- (fuera de rango)' : dist + ' cm';
     el('distReadout').textContent = distText;
-    const distPct = (dist < 0) ? 0 : Math.max(0, Math.min(100, 100 - (dist / 200) * 100));
-    const distBar = el('distBar');
-    distBar.style.width = distPct + '%';
-    distBar.classList.toggle('danger', dist >= 0 && dist < 15);
 
-    el('gasReadout').textContent = gasPct + '%  (raw ' + gasRaw + ')';
-    el('gasBar').style.width = gasPct + '%';
-    document.body.classList.toggle('gas-alarm', alarm);
+    const frac = (dist < 0) ? 1 : Math.max(0, Math.min(1, dist / 200));
+    sonarFillEl.style.strokeDashoffset = sonarLen * (1 - frac);
+
+    const angle = -90 + frac * 180;
+    el('sonarNeedle').setAttribute('transform', `rotate(${angle} 100 100)`);
+
+    const danger = dist >= 0 && dist < 15;
+    sonarFillEl.classList.toggle('danger', danger);
+  }
+
+  // ---------------- Anillos radiales ----------------
+  function setRingFrac(ringEl, radius, frac){
+    const C = 2 * Math.PI * radius;
+    const clamped = Math.max(0, Math.min(1, frac));
+    ringEl.style.strokeDasharray = C;
+    ringEl.style.strokeDashoffset = C * (1 - clamped);
+  }
+
+  function updateSatGauge(wrapId, ringId, valueId, pct, alarm){
+    setRingFrac(el(ringId), 45, pct / 100);
+    el(valueId).textContent = pct + '%';
+    el(wrapId).classList.toggle('alarm', alarm);
+  }
+
+  // ---------------- Telemetría UI (gases) ----------------
+  function updateTelemetryUI(dist, g1raw, g1pct, g1alarm, g2raw, g2pct, g2alarm, g3raw, g3pct, g3alarm, g4raw, g4pct, g4alarm, co2ppm, co2alarm){
+    updateSonar(dist);
+
+    updateSatGauge('gas1Wrap', 'gas1RingFill', 'gas1Value', g1pct, g1alarm);
+    el('alarmBanner1').classList.toggle('active', g1alarm);
+
+    updateSatGauge('gas2Wrap', 'gas2RingFill', 'gas2Value', g2pct, g2alarm);
+    el('alarmBanner2').classList.toggle('active', g2alarm);
+
+    updateSatGauge('gas3Wrap', 'gas3RingFill', 'gas3Value', g3pct, g3alarm);
+    el('alarmBanner3').classList.toggle('active', g3alarm);
+
+    updateSatGauge('gas4Wrap', 'gas4RingFill', 'gas4Value', g4pct, g4alarm);
+    el('alarmBanner5').classList.toggle('active', g4alarm);
+
+    updateCO2UI(co2ppm, co2alarm);
+    el('alarmBanner4').classList.toggle('active', co2alarm);
+  }
+
+  function updateCO2UI(ppm, alarm){
+    const pill = el('co2Pill');
+    const ring = el('co2RingFill');
+    const heroWrap = el('co2HeroWrap');
+
+    if (ppm < 0){
+      el('co2Value').textContent = '--';
+      pill.textContent = 'CALENTANDO';
+      pill.className = 'co2-pill calentando';
+      setRingFrac(ring, 68, 0);
+      ring.className = 'ring-fill';
+      heroWrap.classList.remove('alarm');
+      return;
+    }
+
+    el('co2Value').textContent = ppm;
+    setRingFrac(ring, 68, ppm / 5000);
+
+    let tier = 'normal', txt = 'NORMAL';
+    if (ppm >= 5000){ tier = 'peligro'; txt = 'PELIGRO'; }
+    else if (ppm >= 1000){ tier = 'elevado'; txt = 'ELEVADO'; }
+    pill.textContent = txt;
+    pill.className = 'co2-pill ' + tier;
+    ring.className = 'ring-fill co2-' + tier;
+    heroWrap.classList.toggle('alarm', alarm);
   }
 
   // ---------------- Botones ----------------
