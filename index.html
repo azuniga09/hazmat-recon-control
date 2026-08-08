@@ -93,6 +93,10 @@
   button.ctrl.primary{ border-color:var(--cyan); color:var(--cyan); }
   button.ctrl.stop{ border-color:var(--red); color:var(--red); }
   button.ctrl.stop.armed{ background:var(--red); color:#1c0a0d; box-shadow:0 0 22px rgba(255,77,109,.6); }
+  button.ctrl.toggle.on{ background:rgba(53,230,255,.18); border-color:var(--cyan); color:var(--cyan); box-shadow:0 0 12px rgba(53,230,255,.3) inset; }
+  .axis-tools{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .axis-tools button{ flex:1; min-width:100px; padding:9px 8px; font-size:10.5px; }
+  #motionDebug{ text-align:center; font-size:10.5px; color:var(--text-dim); margin-top:8px; }
 
   .panel{
     background:var(--panel); border:1px solid var(--line);
@@ -275,6 +279,12 @@
       <div><span class="label">Giro</span><span id="steerReadout" class="mono val">0°</span></div>
     </div>
     <div class="reticle-hint">Sostén el iPad con ambas manos. Inclina adelante/atrás (eje X) para acelerar y frenar, de lado a lado (eje Y) para girar. Quédate quieto en tu posición cómoda y presiona "Calibrar" antes de arrancar.</div>
+    <div class="axis-tools">
+      <button class="ctrl toggle" id="swapAxesBtn">&#8596; Intercambiar ejes</button>
+      <button class="ctrl toggle" id="invertThrottleBtn">&#8645; Invertir avance</button>
+      <button class="ctrl toggle" id="invertSteerBtn">&#10231; Invertir giro</button>
+    </div>
+    <div id="motionDebug" class="mono">&beta; (crudo): --&deg; &nbsp; &gamma; (crudo): --&deg;</div>
   </div>
 
   <div class="panel">
@@ -389,6 +399,10 @@
 
   const STEER_RANGE_DEG = 45;
   const THROTTLE_RANGE_DEG = 25;
+
+  let axesSwapped = false;
+  let invertThrottle = false;
+  let invertSteer = false;
 
   const el = (id) => document.getElementById(id);
 
@@ -513,18 +527,25 @@
   }
 
   function onOrientation(event){
-    if (event.gamma !== null){
-      currentGamma = event.gamma; // eje Y -> giro
-      const adjusted = currentGamma - gammaOffset;
-      const clamped = Math.max(-STEER_RANGE_DEG, Math.min(STEER_RANGE_DEG, adjusted));
-      steerValue = Math.round((clamped / STEER_RANGE_DEG) * 100);
-    }
-    if (event.beta !== null){
-      currentBeta = event.beta; // eje X -> avance/reversa
-      const adjusted = currentBeta - betaOffset;
-      const clamped = Math.max(-THROTTLE_RANGE_DEG, Math.min(THROTTLE_RANGE_DEG, adjusted));
-      throttleValue = Math.round((clamped / THROTTLE_RANGE_DEG) * 100);
-    }
+    if (event.gamma === null || event.beta === null) return;
+    currentGamma = event.gamma;
+    currentBeta = event.beta;
+
+    // Qué sensor crudo alimenta cada control, según el intercambio activo
+    const steerRaw    = axesSwapped ? currentBeta  : currentGamma;
+    const throttleRaw = axesSwapped ? currentGamma : currentBeta;
+    const steerBase    = axesSwapped ? betaOffset  : gammaOffset;
+    const throttleBase = axesSwapped ? gammaOffset : betaOffset;
+
+    let steerAdj = (steerRaw - steerBase) * (invertSteer ? -1 : 1);
+    steerAdj = Math.max(-STEER_RANGE_DEG, Math.min(STEER_RANGE_DEG, steerAdj));
+    steerValue = Math.round((steerAdj / STEER_RANGE_DEG) * 100);
+
+    let throttleAdj = (throttleRaw - throttleBase) * (invertThrottle ? -1 : 1);
+    throttleAdj = Math.max(-THROTTLE_RANGE_DEG, Math.min(THROTTLE_RANGE_DEG, throttleAdj));
+    throttleValue = Math.round((throttleAdj / THROTTLE_RANGE_DEG) * 100);
+
+    el('motionDebug').innerHTML = `&beta; (crudo): ${currentBeta.toFixed(0)}&deg; &nbsp; &gamma; (crudo): ${currentGamma.toFixed(0)}&deg;`;
     updateReticle();
   }
 
@@ -671,6 +692,22 @@
   el('connectBtn').addEventListener('click', connectBLE);
   el('motionBtn').addEventListener('click', enableMotion);
   el('calibrateBtn').addEventListener('click', calibrateCenter);
+
+  el('swapAxesBtn').addEventListener('click', () => {
+    axesSwapped = !axesSwapped;
+    el('swapAxesBtn').classList.toggle('on', axesSwapped);
+    log('Ejes intercambiados: ' + (axesSwapped ? 'SÍ' : 'NO'));
+  });
+  el('invertThrottleBtn').addEventListener('click', () => {
+    invertThrottle = !invertThrottle;
+    el('invertThrottleBtn').classList.toggle('on', invertThrottle);
+    log('Avance invertido: ' + (invertThrottle ? 'SÍ' : 'NO'));
+  });
+  el('invertSteerBtn').addEventListener('click', () => {
+    invertSteer = !invertSteer;
+    el('invertSteerBtn').classList.toggle('on', invertSteer);
+    log('Giro invertido: ' + (invertSteer ? 'SÍ' : 'NO'));
+  });
 
   window.addEventListener('load', () => {
     if (!navigator.bluetooth){
